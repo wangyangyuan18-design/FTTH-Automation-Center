@@ -1,0 +1,11 @@
+[general]
+name=FTTH Automation Bridge
+qgisMinimumVersion=3.40
+description=Local bridge between FTTH Automation Center and QGIS.
+version=0.1.0
+author=wangyangyuan18-design
+email=
+about=Executes independent FTTH automation workflows inside QGIS.
+category=Plugins
+experimental=True
+deprecated=False
