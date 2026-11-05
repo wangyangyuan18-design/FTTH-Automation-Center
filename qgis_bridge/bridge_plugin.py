@@ -22,6 +22,10 @@ class FTTHAutomationBridge:
     def __init__(self, iface):
         self.iface = iface
         self.jobs = queue.Queue()
+        self.health_snapshot = {
+            "ok": True, "qgis_version": Qgis.QGIS_VERSION,
+            "project": "读取中", "project_layer_count": 0,
+        }
         self.server = None
         self.server_thread = None
         self.timer = QTimer()
@@ -58,13 +62,8 @@ class FTTHAutomationBridge:
             def do_GET(self):
                 if self.path != "/health":
                     return self._send(404, {"ok": False, "error": "not_found"})
-                project = QgsProject.instance()
-                self._send(200, {
-                    "ok": True,
-                    "qgis_version": Qgis.QGIS_VERSION,
-                    "project": project.fileName() or "未保存/未打开",
-                    "project_layer_count": len(project.mapLayers()),
-                })
+                # Read a GUI-thread snapshot only; never call PyQGIS from this HTTP thread.
+                self._send(200, dict(plugin.health_snapshot))
 
             def do_POST(self):
                 if self.path != "/task/run":
@@ -97,6 +96,14 @@ class FTTHAutomationBridge:
         return job_id
 
     def _drain_jobs(self):
+        # QGIS project access is confined to this QTimer callback on the GUI thread.
+        project = QgsProject.instance()
+        self.health_snapshot = {
+            "ok": True,
+            "qgis_version": Qgis.QGIS_VERSION,
+            "project": project.fileName() or "未保存/未打开",
+            "project_layer_count": len(project.mapLayers()),
+        }
         while not self.jobs.empty():
             job_id, payload = self.jobs.get()
             try:
